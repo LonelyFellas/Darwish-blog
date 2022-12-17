@@ -1,0 +1,32 @@
+:root {
+  --column-gap-header-link: 1rem;
+}
+:root[color-mode="light"] {
+  --surface1: #ffffff;
+  --element: rgb(14, 11, 13);
+  --primary: rgb(225, 30, 111);
+}
+:root[color-mode="dark"] {
+  --surface1: #404040;
+  --element: rgb(246, 244, 245);
+  --primary: rgb(237, 120, 169);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+ul li {
+  list-style: none;
+}
+.flex-row-all-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+a {
+  text-decoration: none;
+  cursor: pointer;
+}
