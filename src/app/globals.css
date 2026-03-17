@@ -85,17 +85,17 @@ body {
   background: color-mix(in oklab, var(--background) 85%, var(--foreground) 15%);
 }
 
-/* rehype-pretty-code */
+/* rehype-pretty-code：保留 Shiki 生成的背景与行内颜色，只补间距与圆角 */
 .mdx-content pre {
   margin: 1.25rem 0;
   padding: 1rem 1rem;
   overflow-x: auto;
-  border-radius: 1rem;
-  border: 1px solid color-mix(in oklab, var(--foreground) 14%, transparent);
-  background: color-mix(in oklab, var(--background) 92%, var(--foreground) 8%);
+  border-radius: 0.75rem;
 }
 
 .mdx-content pre code {
   display: grid;
+  font-size: 0.875rem;
+  line-height: 1.6;
 }
 

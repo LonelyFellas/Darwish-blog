@@ -1,0 +1,259 @@
+---
+title: 欢迎来到我的技术博客
+description: 第一篇示例文章，介绍博客的架构与写作方式。
+date: 2025-03-17
+tags: [Flutter, 博客]
+category: 随笔
+draft: false
+---
+
+这是用 **Next.js** 与 **MDX** 搭建的技术博客。文章写在 `content/posts` 下，用 frontmatter 写元数据。
+
+## 代码示例
+
+下面是一段 Flutter 示例，展示代码高亮效果：
+
+```Flutter
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluwx/fluwx.dart';
+import 'package:go_router/go_router.dart';
+import 'package:logger/logger.dart';
+import 'package:soxenlink_app/core/config/dotenv.dart';
+import 'package:soxenlink_app/core/config/route_config.dart';
+import 'package:soxenlink_app/core/config/theme.dart';
+import 'package:soxenlink_app/core/services/oidc.dart';
+import 'package:soxenlink_app/l10n/app_localizations.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+
+class LoginPage extends ConsumerStatefulWidget {
+  const LoginPage({super.key});
+
+  @override
+  ConsumerState<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends ConsumerState<LoginPage> {
+  WebViewController? _webViewController;
+  final Logger _logger = Logger();
+  bool _isProcessingLogin = false; // 处理登录状态（获取 token 和用户信息）
+  bool _isWebViewInitialized = false;
+  Uri _launchUrl = Uri.parse('');
+  Fluwx? _fluwx = Fluwx();
+
+  @override
+  void initState() {
+    super.initState();
+    // 延迟初始化 WebView，确保 Widget 完全构建
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
+      _launchUrl = await OidcService().buildAuthorizationUrl();
+      _initializeWebView();
+    });
+
+    _fluwx?.addSubscriber((response) {
+      if (response is WeChatAuthResponse) {
+        debugPrint('weChatResponseEvent: ${response.code}');
+        if (response.code != null) {
+          // 处理登录成功
+          _handleWeChatLogin(response.code!);
+        }
+      }
+    });
+  }
+
+  void _handleWeChatLogin(String code) async {
+    _logger.i('weChatResponseEvent: $code');
+    // var response = await AuthorizationApis.wechatAuthByCodeApi(
+    //   code: code,
+    //   clientId: 'soxenlink-app',
+    //   grantType: 'password',
+    // );
+    // print("response: ${response}");
+    // if (response.phone_binding_required != null &&
+    //     response.phone_binding_required! == true) {
+    //   // 重新loadingUrl
+    //   _launchUrl = Uri.parse(
+    //     '${SoxenlinkDotenv.apiAuthUrl}/login/bind-phone-number?code=$code',
+    //   );
+    //   _webViewController?.loadRequest(_launchUrl);
+    //   return;
+    // }
+    // 登录成功
+    // 跳转devices
+    if (!mounted) return;
+    context.go(RouteConfig.devicesPage.path);
+  }
+
+  void _handleLoginSuccess(Map<String, dynamic> queryParameters) async {
+    final List<String?> code = queryParameters['code'];
+    final List<String?> state = queryParameters['state'];
+    final List<String?> iss = queryParameters['iss'];
+    final List<String?> session_state = queryParameters['session_state'];
+    _logger.i('code: $code');
+    _logger.i('state: $state');
+    _logger.i('iss: $iss');
+    _logger.i('session_state: $session_state');
+    // 比较 State 是否一致 防止CSRF攻击
+    if (state.isEmpty || !OidcService().verifyState(state.first ?? '')) {
+      _logger.e('State 不一致，防止CSRF攻击');
+      return;
+    }
+
+    try {
+      setState(() {
+        _isProcessingLogin = true;
+      });
+      await OidcService().exchangeCodeForToken(code.first ?? '');
+      // 跳转devices
+      if (!mounted) return;
+      context.go(RouteConfig.devicesPage.path);
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('登录失败，请重试')));
+    } finally {
+      setState(() {
+        _isProcessingLogin = false;
+      });
+    }
+  }
+
+  void _handleUserAgreement() {
+    // 打开用户协议
+    context.push(
+      '${RouteConfig.userAgreementPage.path}?url=${Uri.encodeComponent('${SoxenlinkDotenv.apiAuthUrl}/user-agreement')}&title=${AppLocalizations.of(context)?.userAgreementPageTitle ?? ''}',
+    );
+  }
+
+  void _handlePrivacyPolicy() {
+    // 打开隐私政策
+    context.push(
+      '${RouteConfig.userAgreementPage.path}?url=${Uri.encodeComponent('${SoxenlinkDotenv.apiAuthUrl}/privacy-policy')}&title=${AppLocalizations.of(context)?.privacyPolicyPageTitle ?? ''}',
+    );
+  }
+
+  void _initializeWebView() {
+    if (_launchUrl.isAbsolute == false) {
+      return;
+    }
+    _webViewController = WebViewController()
+      ..setOverScrollMode(WebViewOverScrollMode.never)
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(Colors.white)
+      ..addJavaScriptChannel(
+        "FlutterChannel",
+        onMessageReceived: (message) async {
+          _logger.i('JavaScript message: ${message.message}');
+          // final map = jsonDecode(message.message);
+          // if (map['action'] == 'loginSuccess') {
+          //   _handleLoginSuccess(map['data']);
+          // }
+        },
+      )
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (String url) {
+            setState(() {
+              _isWebViewInitialized = true;
+            });
+          },
+          onWebResourceError: (WebResourceError error) {
+            _logger.i('WebView error: ${error.description}');
+          },
+          // 监听 URL 变化，处理 OIDC 回调
+          onNavigationRequest: (NavigationRequest request) {
+            var url = Uri.parse(request.url);
+            _logger.i('Navigation request: $url');
+            // 如果是callback url，则处理登录成功
+            if (url.scheme == "https" && url.path == "/callback") {
+              // 处理登录成功
+              _logger.w("开始处理登录成功: ${request.url}");
+              _handleLoginSuccess(url.queryParametersAll);
+              return NavigationDecision.prevent;
+            }
+            if (url.scheme == "https" && url.path == "/login/wechat") {
+              // 处理微信登录
+              _fluwx?.authBy(
+                which: NormalAuth(
+                  scope: 'snsapi_userinfo',
+                  state: 'webchat_sdk_demo_test',
+                ),
+              );
+              return NavigationDecision.prevent;
+            }
+            // 打开用户协议
+            if (url.scheme == "https" && url.path == "/user-agreement") {
+              _handleUserAgreement();
+              return NavigationDecision.prevent;
+            }
+
+            // 打开隐私政策
+            if (url.scheme == "https" && url.path == "/privacy-policy") {
+              _handlePrivacyPolicy();
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
+          },
+        ),
+      )
+      ..loadRequest(_launchUrl);
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      body: Stack(
+        children: [
+          // WebView 内容
+          _isWebViewInitialized && _webViewController != null
+              ? WebViewWidget(controller: _webViewController!)
+              : const Center(child: CircularProgressIndicator()),
+
+          if (_isProcessingLogin)
+            Container(
+              color: Colors.white.withAlpha(170),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppTheme.primaryColor,
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      '正在处理登录...',
+                      style: TextStyle(
+                        color: AppTheme.textPrimaryColor5,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+## 列表与引用
+
+- 支持 **加粗**、_斜体_
+- 有序列表同样可用
+- 引用块如下：
+
+> 技术博客的价值在于把思考沉淀下来，并与人分享。
+
+继续在 `content/posts` 下新建 `.mdx` 文件即可发布新文章。祝写作愉快。

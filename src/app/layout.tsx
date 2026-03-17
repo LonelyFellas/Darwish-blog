@@ -17,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" className="scroll-smooth">
-      <body className="min-h-dvh bg-zinc-50 text-zinc-950 antialiased dark:bg-zinc-950 dark:text-zinc-100">
+      <body className="flex min-h-dvh flex-col bg-zinc-50 text-zinc-950 antialiased dark:bg-zinc-950 dark:text-zinc-100">
         <header className="sticky top-0 z-10 border-b border-zinc-200/80 bg-white/90 backdrop-blur-sm dark:border-zinc-800/80 dark:bg-zinc-950/90">
           <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-6 py-4">
             <Link
@@ -45,9 +45,11 @@ export default function RootLayout({
           </div>
         </header>
 
-        {children}
+        <div className="flex flex-1 flex-col">
+          {children}
+        </div>
 
-        <footer className="mt-20 border-t border-zinc-200/80 py-12 text-sm text-zinc-500 dark:border-zinc-800/80 dark:text-zinc-500">
+        <footer className="mt-auto border-t border-zinc-200/80 py-8 text-sm text-zinc-500 dark:border-zinc-800/80 dark:text-zinc-500">
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-6 sm:flex-row sm:items-center sm:justify-between">
             <span>© {new Date().getFullYear()} 技术博客</span>
             <div className="flex gap-6">
