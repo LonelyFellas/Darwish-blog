@@ -1,18 +1,30 @@
 # 技术博客
 
-基于 [ARCHITECTURE.md](./ARCHITECTURE.md) 的架构搭建的精美技术博客。
+基于 [ARCHITECTURE.md](./ARCHITECTURE.md) 的架构搭建的精美技术博客。使用 **pnpm** 管理依赖。
 
-## 下一步
+## 开发
 
-1. **选择框架**：在项目根目录执行  
-   - Next.js：`npx create-next-app@latest . --ts --tailwind --eslint --app --src-dir`  
-   - Astro：`npm create astro@latest .`
+安装依赖：
 
-2. **创建目录**：按架构文档建立 `content/posts`、`src/components`、`src/lib` 等。
+```bash
+pnpm install
+```
 
-3. **实现数据层**：在 `src/lib/posts.ts` 中实现从 `content/posts` 读取 MDX 与 frontmatter。
+启动开发服务器：
 
-4. **实现页面**：首页列表、`post/[slug]` 文章页，再接入代码高亮与主题。
+```bash
+pnpm dev
+```
+
+构建与预览：
+
+```bash
+pnpm build
+pnpm start
+```
+
+## 写文章
+
+在 `content/posts/` 新建 `.mdx` 文件（带 frontmatter），首页会自动列出，文章路径为 `/post/<slug>`（默认 slug 为文件名）。
 
 详细分层与技术选型见 [ARCHITECTURE.md](./ARCHITECTURE.md)。
-# Darwish-blog
